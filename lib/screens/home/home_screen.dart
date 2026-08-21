@@ -1,6 +1,8 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:zelyo_1/providers/account_provider.dart';
 import 'package:zelyo_1/theme/app_colors.dart';
 import 'package:zelyo_1/widgets/carousel_dots.dart';
 import 'history_screen.dart';
@@ -15,14 +17,14 @@ import 'transaction_detail_screen.dart';
 /// All data below (accounts, contacts, transactions, insights) is
 /// sample/static — every section is broken into its own method so
 /// wiring in real data later doesn't require touching the layout.
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen> {
   // Consistent spacing rhythm across every section, per the 24px rule.
   static const double _kSpacing = 24;
 
@@ -32,49 +34,43 @@ class _HomeScreenState extends State<HomeScreen> {
   // TODO: replace with the signed-in user's real name.
   static const String _userFullName = 'Amara Johnson';
 
-  // TODO: replace with the user's real multi-currency accounts.
-  final List<_CurrencyAccount> _accounts = const [
-    _CurrencyAccount(
-      code: 'NGN',
-      flag: '🇳🇬',
-      symbol: '₦',
-      accountNumber: '2203 4471 902',
-      balance: 482350.75,
-      lastUpdatedLabel: 'Updated 2 mins ago',
-    ),
-    _CurrencyAccount(
-      code: 'USD',
-      flag: '🇺🇸',
-      symbol: '\$',
-      accountNumber: '8814 2290 117',
-      balance: 3240.50,
-      lastUpdatedLabel: 'Updated 5 mins ago',
-    ),
-    _CurrencyAccount(
-      code: 'EUR',
-      flag: '🇪🇺',
-      symbol: '€',
-      accountNumber: '5502 8834 663',
-      balance: 1875.20,
-      lastUpdatedLabel: 'Updated 12 mins ago',
-    ),
-    _CurrencyAccount(
-      code: 'GBP',
-      flag: '🇬🇧',
-      symbol: '£',
-      accountNumber: '7719 4402 258',
-      balance: 962.00,
-      lastUpdatedLabel: 'Updated 20 mins ago',
-    ),
-    _CurrencyAccount(
-      code: 'JPY',
-      flag: '🇯🇵',
-      symbol: '¥',
-      accountNumber: '3390 1187 542',
-      balance: 158400,
-      lastUpdatedLabel: 'Updated 1 hour ago',
-    ),
-  ];
+  // Wallet account metadata that is not part of the balance provider.
+  // Balances themselves come directly from accountsProvider so every screen
+  // watching the provider stays in sync.
+  static const Map<String, String> _accountNumbers = {
+    'NGN': '2203 4471 902',
+    'USD': '8814 2290 117',
+    'EUR': '5502 8834 663',
+    'GBP': '7719 4402 258',
+    'JPY': '3390 1187 542',
+  };
+
+  static const Map<String, String> _lastUpdatedLabels = {
+    'NGN': 'Updated 2 mins ago',
+    'USD': 'Updated 5 mins ago',
+    'EUR': 'Updated 12 mins ago',
+    'GBP': 'Updated 20 mins ago',
+    'JPY': 'Updated 1 hour ago',
+  };
+
+  /// The balances are supplied by Riverpod's accountsProvider.
+  /// This keeps HomeScreen connected to the same source of truth used by
+  /// DepositScreen, WithdrawScreen, TransferScreen and ConvertScreen.
+  List<_CurrencyAccount> get _accounts {
+    final accounts = ref.watch(accountsProvider);
+
+    return accounts.map((account) {
+      return _CurrencyAccount(
+        code: account.code,
+        flag: account.flag,
+        symbol: account.symbol,
+        accountNumber: _accountNumbers[account.code] ?? '',
+        balance: account.balance,
+        lastUpdatedLabel:
+            _lastUpdatedLabels[account.code] ?? 'Updated just now',
+      );
+    }).toList(growable: false);
+  }
 
   
   // TODO: replace with the user's real recent transactions.

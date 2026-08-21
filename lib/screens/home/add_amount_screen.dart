@@ -1,23 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:zelyo_1/theme/app_colors.dart';
 import 'package:zelyo_1/models/transfer_models.dart';
+import 'package:zelyo_1/providers/account_provider.dart';
 import 'package:zelyo_1/widgets/recipient_confirm_sheet.dart';
 import 'review_transfer_screen.dart';
 
 /// Second step of the transfer flow — enter how much to send, shown
 /// alongside who it's going to and which of the user's accounts it's
 /// coming from.
-class AddAmountScreen extends StatefulWidget {
+class AddAmountScreen extends ConsumerStatefulWidget {
   final TransferRequest transfer;
 
   const AddAmountScreen({super.key, required this.transfer});
 
   @override
-  State<AddAmountScreen> createState() => _AddAmountScreenState();
+  ConsumerState<AddAmountScreen> createState() => _AddAmountScreenState();
 }
 
-class _AddAmountScreenState extends State<AddAmountScreen> {
+class _AddAmountScreenState extends ConsumerState<AddAmountScreen> {
   // TODO: replace with the signed-in user's real name/account details.
   static const String _userName = 'Amara Johnson';
   static const String _userAccountNumber = '2203 4471 902';
@@ -39,7 +41,14 @@ class _AddAmountScreenState extends State<AddAmountScreen> {
     super.dispose();
   }
 
-  bool get _exceedsBalance => _amount > widget.transfer.currency.balance;
+  /// Always reads the latest balance from the shared wallet provider so
+  /// this screen cannot continue using a stale balance after another
+  /// wallet screen changes the account.
+  TransferCurrency get _currentCurrency {
+    return ref.watch(accountByCodeProvider(widget.transfer.currency.code));
+  }
+
+  bool get _exceedsBalance => _amount > _currentCurrency.balance;
 
   Future<void> _onContinueTap() async {
     if (_amount <= 0 || _exceedsBalance) return;
@@ -55,7 +64,10 @@ class _AddAmountScreenState extends State<AddAmountScreen> {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => ReviewTransferScreen(
-          transfer: widget.transfer.copyWith(amount: _amount),
+          transfer: widget.transfer.copyWith(
+            currency: _currentCurrency,
+            amount: _amount,
+          ),
         ),
       ),
     );
@@ -64,7 +76,7 @@ class _AddAmountScreenState extends State<AddAmountScreen> {
   @override
   Widget build(BuildContext context) {
     final recipient = widget.transfer.recipient;
-    final currency = widget.transfer.currency;
+    final currency = _currentCurrency;
 
     return Scaffold(
       backgroundColor: AppColors.background,

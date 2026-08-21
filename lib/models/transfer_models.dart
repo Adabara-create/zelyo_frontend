@@ -14,6 +14,20 @@ class TransferCurrency {
     required this.symbol,
     required this.balance,
   });
+
+  TransferCurrency copyWith({
+    String? code,
+    String? flag,
+    String? symbol,
+    double? balance,
+  }) {
+    return TransferCurrency(
+      code: code ?? this.code,
+      flag: flag ?? this.flag,
+      symbol: symbol ?? this.symbol,
+      balance: balance ?? this.balance,
+    );
+  }
 }
 
 /// A transfer recipient — either picked from recents or resolved from a

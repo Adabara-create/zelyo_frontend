@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zelyo_1/theme/app_colors.dart';
 import 'package:zelyo_1/models/transfer_models.dart';
+import 'package:zelyo_1/providers/account_provider.dart';
 import 'package:zelyo_1/widgets/recipient_confirm_sheet.dart';
 import 'add_amount_screen.dart';
 
@@ -8,24 +10,16 @@ import 'add_amount_screen.dart';
 /// either type a recipient's account number (auto-detecting their bank)
 /// or pick from recent recipients, then confirm before moving on to
 /// [AddAmountScreen].
-class TransferScreen extends StatefulWidget {
+class TransferScreen extends ConsumerStatefulWidget {
   const TransferScreen({super.key});
 
   @override
-  State<TransferScreen> createState() => _TransferScreenState();
+  ConsumerState<TransferScreen> createState() => _TransferScreenState();
 }
 
-class _TransferScreenState extends State<TransferScreen> {
+class _TransferScreenState extends ConsumerState<TransferScreen> {
   static const int _accountNumberLength = 10;
 
-  // TODO: replace with the user's real multi-currency accounts.
-  final List<TransferCurrency> _currencies = const [
-    TransferCurrency(code: 'NGN', flag: '🇳🇬', symbol: '₦', balance: 482350.75),
-    TransferCurrency(code: 'USD', flag: '🇺🇸', symbol: '\$', balance: 3240.50),
-    TransferCurrency(code: 'EUR', flag: '🇪🇺', symbol: '€', balance: 1875.20),
-    TransferCurrency(code: 'GBP', flag: '🇬🇧', symbol: '£', balance: 962.00),
-    TransferCurrency(code: 'JPY', flag: '🇯🇵', symbol: '¥', balance: 158400),
-  ];
 
   // TODO: replace with the user's real recent recipients.
   final List<Recipient> _recentRecipients = const [
@@ -41,7 +35,15 @@ class _TransferScreenState extends State<TransferScreen> {
     'GTBank', 'Access Bank', 'Zenith Bank', 'UBA', 'First Bank', 'Kuda',
   ];
 
-  late TransferCurrency _selectedCurrency;
+  String _selectedCurrencyCode = 'NGN';
+
+  /// Always resolves the selected currency from Riverpod so its balance is
+  /// always the latest value after a deposit, withdrawal, transfer, or
+  /// conversion.
+  TransferCurrency get _selectedCurrency {
+    final accounts = ref.read(accountsProvider);
+    return accounts.firstWhere((currency) => currency.code == _selectedCurrencyCode);
+  }
   final TextEditingController _accountNumberController = TextEditingController();
   final TextEditingController _searchController = TextEditingController();
 
@@ -52,7 +54,6 @@ class _TransferScreenState extends State<TransferScreen> {
   @override
   void initState() {
     super.initState();
-    _selectedCurrency = _currencies.first;
     _accountNumberController.addListener(_onAccountNumberChanged);
     _searchController.addListener(() {
       setState(() => _searchQuery = _searchController.text.trim().toLowerCase());
@@ -107,11 +108,11 @@ class _TransferScreenState extends State<TransferScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) => _CurrencyPickerSheet(
-        currencies: _currencies,
+        currencies: ref.read(accountsProvider),
         selected: _selectedCurrency,
       ),
     );
-    if (picked != null) setState(() => _selectedCurrency = picked);
+    if (picked != null) setState(() => _selectedCurrencyCode = picked.code);
   }
 
   Future<void> _searchOtherBanks() async {
@@ -157,6 +158,10 @@ class _TransferScreenState extends State<TransferScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Watch the shared wallet state so this screen rebuilds when any other
+    // wallet screen changes a balance.
+    ref.watch(accountsProvider);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(

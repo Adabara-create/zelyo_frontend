@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'theme/app_colors.dart';
 import 'screens/welcome_screen.dart';
 
@@ -16,7 +17,16 @@ void main() {
     ),
   );
 
-  runApp(const ZelyoApp());
+  runApp(
+    // ProviderScope must sit above MaterialApp — it's what makes every
+    // Riverpod provider (accountsProvider now, more as we migrate other
+    // screens) reachable from anywhere in the widget tree via
+    // ref.watch/ref.read. Forgetting this is the #1 cause of "provider
+    // not found" errors.
+    const ProviderScope(
+      child: ZelyoApp(),
+    ),
+  );
 }
 
 class ZelyoApp extends StatelessWidget {

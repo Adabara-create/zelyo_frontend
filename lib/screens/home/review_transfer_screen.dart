@@ -1,21 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zelyo_1/theme/app_colors.dart';
 import 'package:zelyo_1/models/transfer_models.dart';
+import 'package:zelyo_1/providers/account_provider.dart';
 import 'authorize_transaction_screen.dart';
 
 /// Final review before payment: full transfer details, a narration
 /// field, and a fee/total breakdown, ending in the "Pay" button that
 /// hands off to [AuthorizeTransactionScreen].
-class ReviewTransferScreen extends StatefulWidget {
+class ReviewTransferScreen extends ConsumerStatefulWidget {
   final TransferRequest transfer;
 
   const ReviewTransferScreen({super.key, required this.transfer});
 
   @override
-  State<ReviewTransferScreen> createState() => _ReviewTransferScreenState();
+  ConsumerState<ReviewTransferScreen> createState() => _ReviewTransferScreenState();
 }
 
-class _ReviewTransferScreenState extends State<ReviewTransferScreen> {
+class _ReviewTransferScreenState extends ConsumerState<ReviewTransferScreen> {
   // TODO: replace with the signed-in user's real name/account details.
   static const String _userName = 'Amara Johnson';
   static const String _userAccountNumber = '2203 4471 902';
@@ -26,6 +28,12 @@ class _ReviewTransferScreenState extends State<ReviewTransferScreen> {
 
   final TextEditingController _narrationController = TextEditingController();
 
+  /// Always reads the latest account from Riverpod so the review screen
+  /// stays connected to the shared wallet state.
+  TransferCurrency get _currentCurrency {
+    return ref.watch(accountByCodeProvider(widget.transfer.currency.code));
+  }
+
   @override
   void dispose() {
     _narrationController.dispose();
@@ -33,7 +41,13 @@ class _ReviewTransferScreenState extends State<ReviewTransferScreen> {
   }
 
   void _onPayTap() {
-    final finalTransfer = widget.transfer.copyWith(narration: _narrationController.text.trim());
+    final currency = _currentCurrency;
+
+    final finalTransfer = widget.transfer.copyWith(
+      currency: currency,
+      narration: _narrationController.text.trim(),
+    );
+
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => AuthorizeTransactionScreen(transfer: finalTransfer),
@@ -44,7 +58,7 @@ class _ReviewTransferScreenState extends State<ReviewTransferScreen> {
   @override
   Widget build(BuildContext context) {
     final transfer = widget.transfer;
-    final currency = transfer.currency;
+    final currency = _currentCurrency;
     final recipient = transfer.recipient;
 
     return Scaffold(
